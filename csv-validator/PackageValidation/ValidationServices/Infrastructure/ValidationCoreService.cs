@@ -4,6 +4,7 @@ namespace ValidationPilotServices.Infrastructure
 {
     public class ValidationCoreService
     {
+        private readonly StringBuilder output = new StringBuilder();
 
         protected readonly string error_message_template = "{0};{1};{2};{3};{4};\"{5}\"";
 
@@ -11,6 +12,7 @@ namespace ValidationPilotServices.Infrastructure
 
         public bool IsValid { get; protected set; } = true;
 
+        public string ValidationOutput => output.ToString();
 
         public ValidationCoreService()
         {
@@ -29,7 +31,7 @@ namespace ValidationPilotServices.Infrastructure
         {
             this.IsValid = false;
             this.ErrorsCounter++;
-            LoggerService.LoggerService.GetValidationErrorsLog().Error(message);
+            output.AppendLine(message);
         }
 
         /// <summary>
@@ -38,22 +40,22 @@ namespace ValidationPilotServices.Infrastructure
         /// <param name="message">The message to write to log file.</param>
         protected virtual void LogInfo(string message)
         {
-            LoggerService.LoggerService.GetValidationErrorsLog().Info(message);
+            output.AppendLine(message);
         }
 
         protected virtual void LogDebug(string message)
         {
-            LoggerService.LoggerService.GetValidationErrorsLog().Debug(message);
+            output.AppendLine(message);
         }
 
         protected virtual void LogFatal(string message)
         {
-            LoggerService.LoggerService.GetValidationErrorsLog().Fatal(message);
+            output.AppendLine(message);
         }
 
         protected virtual void LogWarn(string message)
         {
-            LoggerService.LoggerService.GetValidationErrorsLog().Warn(message);
+            output.AppendLine(message);
         }
     }
 }

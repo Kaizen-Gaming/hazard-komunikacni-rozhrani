@@ -1,8 +1,10 @@
 ﻿using CsvHelper;
 using System.Collections.Generic;
 using System.Dynamic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
+using CsvHelper.Configuration;
 using ValidationPilotServices.DataTypes;
 using ValidationPilotServices.Infrastructure.Enums;
 using ValidationPilotServices.SchemaReader;
@@ -17,7 +19,7 @@ namespace ValidationPilotTests
         {
         }
 
-        #region FUNCTIONS AND PROCEDURES SUPPORT 
+        #region FUNCTIONS AND PROCEDURES SUPPORT
 
         private Fields GetFields()
         {
@@ -44,8 +46,11 @@ namespace ValidationPilotTests
 
             using (TextReader fileReader = File.OpenText(fi.FullName))
             {
-                var csv = new CsvReader(fileReader);
-                csv.Configuration.HasHeaderRecord = true;
+                var csvConfiguration = new CsvConfiguration(CultureInfo.InvariantCulture)
+                {
+                    HasHeaderRecord = true
+                };
+                var csv = new CsvReader(fileReader, csvConfiguration);
 
                 while (csv.Read())
                 {
@@ -80,9 +85,12 @@ namespace ValidationPilotTests
 
             using (StreamReader reader = new StreamReader(fi.FullName, false))
             {
-                using (var csv = new CsvReader(reader))
+                var csvConfiguration = new CsvConfiguration(CultureInfo.InvariantCulture)
                 {
-                    csv.Configuration.Delimiter = ";";
+                    Delimiter = ";"
+                };
+                using (var csv = new CsvReader(reader, csvConfiguration))
+                {
                     int lineCounter = 0;
 
                     while (csv.Read())
@@ -95,14 +103,14 @@ namespace ValidationPilotTests
                         else if (lineCounter == 1)
                         {
                             csv.ReadHeader();
-                            headerCount = csv.Context.Record.Length;
+                            headerCount = csv.Parser.Record.Length;
                             lineCounter++;
                             continue;
                         }
 
                         ExpandoObject row = csv.GetRecord<dynamic>();
 
-                        if (csv.Context.Record.Length != headerCount)
+                        if (csv.Parser.Record.Length != headerCount)
                         {
                             this.Output.WriteLine("Records Error");
                         }

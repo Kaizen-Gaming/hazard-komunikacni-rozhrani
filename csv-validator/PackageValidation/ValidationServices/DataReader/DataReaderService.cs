@@ -2,10 +2,13 @@
 using System;
 using System.Collections.Generic;
 using System.Dynamic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Security.Cryptography;
+using CsvHelper.Configuration;
+using Microsoft.Extensions.Logging;
 using ValidationPilotServices.DataTypes;
 using ValidationPilotServices.Infrastructure;
 using ValidationPilotServices.Infrastructure.Attributes;
@@ -27,10 +30,15 @@ namespace ValidationPilotServices.DataReader
         private readonly PackageReaderService _package;
 
         /// <summary>
-        /// The object specifies result of validation
-        /// to serialized to the output result file.
+        /// The logging facility for recording the data reader activity.
         /// </summary>
-        private readonly ValidationResultCollection _result;
+        private readonly ILogger _logger;
+
+        // /// <summary>
+        // /// The object specifies result of validation
+        // /// to serialized to the output result file.
+        // /// </summary>
+        // private readonly ValidationResultCollection _result;
 
         /// <summary>
         /// GET; PRIVATELY SET;
@@ -44,7 +52,7 @@ namespace ValidationPilotServices.DataReader
         /// GET; SET;
         /// This property consists of string contained log files collection in the package folder.
         /// This files must not be validated and must be passed during validation process.
-        /// The files collection set in json configuration file. 
+        /// The files collection set in json configuration file.
         /// </summary>
         [ConfigurationReader(ConfigurationParameter = "SourceLocation:LogFilesInOperationFolder")]
         public string FilesToPass { get; set; }
@@ -68,15 +76,16 @@ namespace ValidationPilotServices.DataReader
 
 
 
-        public DataReaderService(PackageReaderService packageType) : base()
+        public DataReaderService(PackageReaderService packageType, ILogger logger = null) : base()
         {
             if (packageType == null)
             {
                 throw new ArgumentNullException();
             }
             this._package = packageType;
+            this._logger = logger;
             this.DataSourceFolder = packageType.package_source_full_path;
-            this._result = new ValidationResultCollection(packageType.package_number, packageType.package_source_full_path);
+            // this._result = new ValidationResultCollection(packageType.package_number, packageType.package_source_full_path);
             this.ConfigFieldsIni();
         }
 
@@ -205,7 +214,7 @@ namespace ValidationPilotServices.DataReader
         }
 
         /// <summary>
-        /// This function returns TRUE 
+        /// This function returns TRUE
         /// </summary>
         /// <param name="item"></param>
         /// <param name="value"></param>
@@ -347,7 +356,7 @@ namespace ValidationPilotServices.DataReader
             bool found_0A=false;
             bool found_0D=false;
             int line=0;
-            States state = States._idle;     
+            States state = States._idle;
 
             public VerifyingStreamReader(string fileName, Encoding enc):base(fileName,enc){}
             public override int Read(char[] buffer, int index, int count){
@@ -357,37 +366,37 @@ namespace ValidationPilotServices.DataReader
                     switch (state) {
                         case States._idle:
                         switch (c){
-                            case (char)0x0D: 
-                                state=States._0d; 
+                            case (char)0x0D:
+                                state=States._0d;
                                 break;
-                            case (char)0x0A: 
+                            case (char)0x0A:
                                 state=States._idle;
-                                line++; 
+                                line++;
                                 if (line>2) found_0A=true;
                                 checkValidity();
                                 break;
-                            default: 
-                                state=States._idle; 
+                            default:
+                                state=States._idle;
                                 break;
                         }
                         break;
 
                         case States._0d:
                         switch (c){
-                            case (char)0x0D: 
-                                state=States._0d; 
-                                found_0D=true; 
+                            case (char)0x0D:
+                                state=States._0d;
+                                found_0D=true;
                                 checkValidity();
                                 break;
-                            case (char)0x0A: 
+                            case (char)0x0A:
                                 state=States._idle;
-                                line++; 
-                                if (line>2) found_0D0A=true; 
+                                line++;
+                                if (line>2) found_0D0A=true;
                                 checkValidity();
                                 break;
-                            default: 
-                                state=States._idle; 
-                                found_0D=true;  
+                            default:
+                                state=States._idle;
+                                found_0D=true;
                                 checkValidity();
                                 break;
                         }
@@ -399,9 +408,9 @@ namespace ValidationPilotServices.DataReader
             }
 
             private void checkValidity(){
-                if ( found_0D ) 
+                if ( found_0D )
                   throw new BadLineEndsException(String.Format("found standalone char 0x0d which is not allowed: line {0}",line));
-                if ( found_0A && found_0D0A) 
+                if ( found_0A && found_0D0A)
                   throw new BadLineEndsException(String.Format("found mixed line ends 0x0d0x0a and 0x0a which is not allowed: line {0}",line));
             }
         }
@@ -411,21 +420,23 @@ namespace ValidationPilotServices.DataReader
             linesNumber = 0;
             Encoding enc = Encoding.GetEncoding(
                   "utf-8",
-                  new EncoderExceptionFallback(), 
+                  new EncoderExceptionFallback(),
                   new DecoderExceptionFallback());
 
+            var csvConfiguration = new CsvConfiguration(CultureInfo.InvariantCulture)
+            {
+                Delimiter = this.FieldsSeparator,
+                IgnoreBlankLines = false,
+                LineBreakInQuotedFieldIsBadData = true,
+                AllowComments = false,
+                // BadDataFound = (c) => {
+                //     this.ValidationErrorMessage(EnumValidationResult.ERR_LINE_INVALID_CSV, "", -1, "invalid CSV form");
+                // }
+            };
 
             using (StreamReader reader = new VerifyingStreamReader(fileInfo.FullName,enc))
-            using (CsvReader csv = new CsvReader(reader))
+            using (CsvReader csv = new CsvReader(reader, csvConfiguration))
             {
-                
-                csv.Configuration.Delimiter = this.FieldsSeparator;
-                csv.Configuration.IgnoreBlankLines = false;
-                csv.Configuration.LineBreakInQuotedFieldIsBadData = true;
-                csv.Configuration.AllowComments = false;
-                // csv.Configuration.BadDataFound = (c)=>{
-                //     this.ValidationErrorMessage(EnumValidationResult.ERR_LINE_INVALID_CSV, "", -1, "invalid CSV form");
-                // };
                 int headerCount = 0;
 
                 bool moreRecords = true;
@@ -450,8 +461,7 @@ namespace ValidationPilotServices.DataReader
                                 this.LineErrorMessage(EnumValidationResult.ERR_LINE_INVALID_CSV, linesNumber, $"Line endings error: {ex.GetBaseException().Message}");
                                 break;
                             } else {
-                                LoggerService.LoggerService.GetGlobalLog().Error("Exception while reading row", ex);
-                                throw ex;
+                                throw new Exception("Exception while reading row", ex);
                             }
                         }
                         if (!moreRecords)
@@ -460,7 +470,7 @@ namespace ValidationPilotServices.DataReader
                         }
                         // Check the line size
                         // ERR_LINE_TOO_LONG
-                        if (TypeExtensions.GetBytesCount(csv.Context.RecordBuilder.ToString()) > this.MaxLineLength)
+                        if (TypeExtensions.GetBytesCount(csv.Parser.RawRecord) > this.MaxLineLength)
                         {
                             this.LineErrorMessage(EnumValidationResult.ERR_LINE_TOO_LONG, linesNumber + 1, "The line is too long.");
                             break;
@@ -477,18 +487,18 @@ namespace ValidationPilotServices.DataReader
 
                             //ERR_LINE_BAD_HEADER - validation type
                             if (!this._package.FieldsCollection.ValidateFieldsComposition(this.ValidationErrorMessage, this.CurrentFileToValidate,
-                                csv.Context.Record))
+                                csv.HeaderRecord))
                             {
                                 this.ValidationErrorMessage(EnumValidationResult.ERR_LINE, "", 1, "");
                                 break;
                             }
 
-                            headerCount = csv.Context.Record.Length;
+                            headerCount = csv.HeaderRecord.Length;
                             linesNumber++;
                             continue;
                         }
 
-                        if (csv.Context == null || csv.Context.Record == null)
+                        if (csv.Context == null || csv.Parser.Record == null)
                         {
                             this.ValidationErrorMessage(EnumValidationResult.ERR_LINE_INVALID_FIELDS, "", linesNumber, $"Failed to extract fields from line");
                             linesNumber++;
@@ -496,9 +506,9 @@ namespace ValidationPilotServices.DataReader
                         }
 
                         //ERR_LINE_BAD_FIELD_COUNT - validation type
-                        if (headerCount != csv.Context.Record.Length)
+                        if (headerCount != csv.Parser.Record.Length)
                         {
-                            this.ValidationErrorMessage(EnumValidationResult.ERR_LINE_BAD_FIELD_COUNT, "", linesNumber, $"{csv.Context.Record.Length} fields found in metadata line expected {headerCount}");
+                            this.ValidationErrorMessage(EnumValidationResult.ERR_LINE_BAD_FIELD_COUNT, "", linesNumber, $"{csv.Parser.Record.Length} fields found in metadata line expected {headerCount}");
                             linesNumber++;
                             continue;
                         }
@@ -543,17 +553,17 @@ namespace ValidationPilotServices.DataReader
                     catch (BadDataException ex)
                     {
                         string detailMsg = "Other error.";
-                        if (ex.ReadingContext.Record != null)
+                        if (ex.Context?.Parser?.RawRecord != null)
                         {
-                            if (ex.ReadingContext.Record.Contains("\""))
+                            if (ex.Context.Parser.RawRecord.Contains("\""))
                             {
                                 detailMsg = "Field contains invalid character: >>\"<<";
                             }
-                            else if (ex.ReadingContext.Record.Contains("'"))
+                            else if (ex.Context.Parser.RawRecord.Contains("'"))
                             {
                                 detailMsg = "Field contains invalid character: >>'<<";
                             }
-                            else if (ex.ReadingContext.Record.Contains("\r") || ex.ReadingContext.Record.Contains("\n"))
+                            else if (ex.Context.Parser.RawRecord.Contains("\r") || ex.Context.Parser.RawRecord.Contains("\n"))
                             {
                                 detailMsg = "Field contains invalid character: >>CR or LF<<";
                             }
@@ -562,12 +572,11 @@ namespace ValidationPilotServices.DataReader
                                 detailMsg = "Other error.";
                             }
                         }
-                        this.ValidationErrorMessage(EnumValidationResult.ERR_LINE_INVALID_CSV, "", linesNumber, $"line is not well formed CSV record index:{ex.ReadingContext.CurrentIndex}, char position: {ex.ReadingContext.CharPosition}. Detail - {detailMsg}");
+                        this.ValidationErrorMessage(EnumValidationResult.ERR_LINE_INVALID_CSV, "", linesNumber, $"line is not well formed CSV record index:{ex.Context.Parser.Row}, char position: {ex.Context.Parser.CharCount}. Detail - {detailMsg}");
                         linesNumber++;
                     }
                     catch (Exception ex)
                     {
-                        LoggerService.LoggerService.GetGlobalLog().Error("Exception while processing CSV row", ex);
                         this.ValidationErrorMessage(EnumValidationResult.ERR_INTERNAL, "", linesNumber, $"exception while processing line:{ex.Message}");
                         linesNumber++;
                     }
@@ -590,7 +599,7 @@ namespace ValidationPilotServices.DataReader
 
         /// <summary>R
         /// This function returns collection of the files which are compulsory for the package
-        /// validation. 
+        /// validation.
         /// </summary>
         /// <returns>The compulsory files array.</returns>
         private string[] GetMandatoryFilesCollection()
@@ -623,6 +632,8 @@ namespace ValidationPilotServices.DataReader
         private List<FileInfo> GetFilesCollectionValidated()
         {
             DirectoryInfo di = new DirectoryInfo(this.DataSourceFolder);
+            _logger.LogDebug($"Listing files in \"{di.Name}\" with Exists={di.Exists}, Parent={di.Parent}, Root={di.Root}, CreationTime={di.CreationTime}.");
+
             List<FileInfo> files = new List<FileInfo>();
 
             foreach (FileInfo fi in di.GetFiles())
@@ -630,11 +641,13 @@ namespace ValidationPilotServices.DataReader
                 //validation result and log are allowed
                 if (fi.Name.StartsWith("validation-"))
                 {
+                    _logger.LogDebug($"Ignoring \"{fi.Name}\" in \"{this.DataSourceFolder}\" because is a validation file.");
                     continue;
                 }
 
                 if (this.FilesToPass.Contains(fi.Name))
                 {
+                    _logger.LogDebug($"Ignoring \"{fi.Name}\" in \"{this.DataSourceFolder}\" because is contained in FilesToPass=\"{this.FilesToPass}\".");
                     continue;
                 }
 
@@ -643,17 +656,18 @@ namespace ValidationPilotServices.DataReader
                 if (string.IsNullOrEmpty(fn))
                 {
                     FileErrorMessage(EnumValidationResult.ERR_PKG_EXTRA_FILES, $"The file {fi.Name} contained in package {this._package.package_number} is not expected.");
-                    this._result.AddItem(fi.Name, 0, EnumValidationResult.ERR_PKG_EXTRA_FILES, string.Empty);
+                    // this._result.AddItem(fi.Name, 0, EnumValidationResult.ERR_PKG_EXTRA_FILES, string.Empty);
                     continue;
                 }
 
+                _logger.LogDebug($"Listed \"{fi.Name}\" in \"{this.DataSourceFolder}\".");
                 files.Add(fi);
             }
             return files;
         }
 
         /// <summary>
-        /// This function returns 
+        /// This function returns
         /// </summary>
         /// <param name="collection"></param>
         /// <returns></returns>
@@ -682,7 +696,7 @@ namespace ValidationPilotServices.DataReader
         }
 
         /// <summary>
-        /// This function returns true if mena_kurs.csv presence is valid, false othervise 
+        /// This function returns true if mena_kurs.csv presence is valid, false othervise
         /// </summary>
         /// <param name="collection"></param>
         /// <returns></returns>
@@ -691,7 +705,7 @@ namespace ValidationPilotServices.DataReader
             bool menaKursMandatory=false;
             if (this._package.Model.ToUpper()=="M"){
                 //maly model
-                if (    this._package.ReportPeriod.EndsWith("03") 
+                if (    this._package.ReportPeriod.EndsWith("03")
                      || this._package.ReportPeriod.EndsWith("06")
                      || this._package.ReportPeriod.EndsWith("09")
                      || this._package.ReportPeriod.EndsWith("12")){
@@ -701,7 +715,7 @@ namespace ValidationPilotServices.DataReader
 
             if (this._package.Model.ToUpper()=="V"){
                 //velky model //042516, 072516, 102516, 012516
-                if (    this._package.ReportPeriod.EndsWith("042516") 
+                if (    this._package.ReportPeriod.EndsWith("042516")
                      || this._package.ReportPeriod.EndsWith("072516")
                      || this._package.ReportPeriod.EndsWith("102516")
                      || this._package.ReportPeriod.EndsWith("012516")){
@@ -745,7 +759,7 @@ namespace ValidationPilotServices.DataReader
         private void validateRecordCount(int lineCount){
             int recordCount=lineCount-2;
             switch (this.CurrentFileToValidate.ToLower()){
-                case "provozovatel.csv": validateExactRecordCount(1,recordCount); break; 
+                case "provozovatel.csv": validateExactRecordCount(1,recordCount); break;
                 case "misto.csv":
                 if ("M".Equals(this._package.Model.ToUpper())){
                     validateExactRecordCount(1,recordCount);
@@ -759,34 +773,35 @@ namespace ValidationPilotServices.DataReader
 
         private void ReadFileDataValidationCycle(List<FileInfo> files)
         {
+            this.Clean();
+
             files = files.OrderBy(fi=>fi.Name.ToLower()).ToList();
             foreach (FileInfo file in files)
             {
-                this.Clean();
                 this.CurrentFileToValidate = file.Name;
 
                 if (!this.IsFileMetaDataValid(file))
                 {
-                    this._result.AddItem(this.CurrentFileToValidate, 0, EnumValidationResult.ERR_LINE_BAD_META, string.Empty);
+                    // this._result.AddItem(this.CurrentFileToValidate, 0, EnumValidationResult.ERR_LINE_BAD_META, string.Empty);
                     continue;
                 }
 
                 string fileHash = this.FileSha256HashCalculation(file);
-                LoggerService.LoggerService.GetValidationProcessingLog().Info($"Start validate {file.Name}");
+                _logger?.LogInformation($"Start validate {file.Name}");
                 this.ReadFileData(file, out var counter);
-                validateRecordCount(counter); 
+                validateRecordCount(counter);
 
                 if (this.IsValid)
                 {
-                    LoggerService.LoggerService.GetValidationProcessingLog().Info($"The file {file.Name} is valid.");
+                    _logger?.LogInformation($"The file {file.Name} is valid.");
                 }
                 else
                 {
                     FileErrorMessage(EnumValidationResult.ERR_FILE, $"The file {file.Name} is invalid.");
                 }
 
-                this._result.AddItem(file.Name, counter - 2,
-                    (this.IsValid ? EnumValidationResult.VALID : EnumValidationResult.ERROR_INVALID), fileHash);
+                // this._result.AddItem(file.Name, counter - 2,
+                //     (this.IsValid ? EnumValidationResult.VALID : EnumValidationResult.ERROR_INVALID), fileHash);
             }
         }
 
@@ -838,21 +853,25 @@ namespace ValidationPilotServices.DataReader
                     if ( ! ( buf[0] == '#' || (buf[0] == 0xef && buf[1] == 0xbb && buf[2] == 0xbf && buf[3] == '#') ) )
                     {
                         this.LineErrorMessage(EnumValidationResult.ERR_LINE_INVALID_HASH, 1, "File should start with hash # or UTF-8 BOM and hash #");
-                        return false;                        
+                        return false;
                     }
                 }
 
+                var csvConfiguration = new CsvConfiguration(CultureInfo.InvariantCulture)
+                {
+                    Delimiter = this.FieldsSeparator
+                };
+
                 using (StreamReader reader = new StreamReader(fileInfo.FullName))
-                using (var csv = new CsvReader(reader))
+                using (var csv = new CsvReader(reader, csvConfiguration))
                 {
                     int lineCounter = 0;
-                    csv.Configuration.Delimiter = this.FieldsSeparator;
 
                     while (csv.Read())
                     {
                         if (lineCounter == 0)
                         {
-                            string row = csv.Context.RawRecordBuilder.ToString();
+                            string row = csv.Parser.RawRecord;
 
                             if (string.IsNullOrEmpty(row) || !row.StartsWith("#"))
                             {
@@ -860,7 +879,7 @@ namespace ValidationPilotServices.DataReader
                                 break;
                             }
 
-                            if (csv.Context.Record.Length != 4)
+                            if (csv.Parser.Record.Length != 4)
                             {
                                 this.LineErrorMessage(EnumValidationResult.ERR_LINE_SPLIT_META, 1, "The file metadata has wrong number of fields.");
                                 break;
@@ -903,7 +922,7 @@ namespace ValidationPilotServices.DataReader
             catch (Exception ex)
             {
                 this.ValidationErrorMessage(EnumValidationResult.ERR_INTERNAL, "", 0, $"{ex.Message}");
-                LoggerService.LoggerService.GetValidationProcessingLog().Error($"Exception while validating metadata line {this._package.package_number} in {this.CurrentFileToValidate}", ex);
+                _logger?.LogError(ex, $"Exception while validating metadata line {this._package.package_number} in {this.CurrentFileToValidate}");
             }
 
             return this.IsValid;
@@ -917,14 +936,13 @@ namespace ValidationPilotServices.DataReader
         /// </summary>
         public void StartValidationProcess(string fileToValidate = null)
         {
-            LoggerService.LoggerService.GetValidationProcessingLog().Info($"Start processing package {this._package.package_number}");
+            _logger?.LogInformation($"Start processing package {this._package.package_number}");
 
             //get files collection
             List<FileInfo> files = this.GetFilesCollectionValidated();
 
             if (!files.Any())
             {
-                LoggerService.LoggerService.GetGlobalLog().Warn($"No package data file found.");
                 this.PackageErrorMessage(EnumValidationResult.ERR_PKG_MISSING_FILE,"No package data file found",true);
                 throw new FileNotFoundException($"There are no files found in {this.DataSourceFolder}");
             }
@@ -935,13 +953,11 @@ namespace ValidationPilotServices.DataReader
             if (missed.Any())
             {
                 string mess = string.Join(",", missed);
-                LoggerService.LoggerService.GetGlobalLog().Warn($"Missing files: {mess}");
                 this.PackageErrorMessage(EnumValidationResult.ERR_PKG_MISSING_FILE,$"Missing file(s) {mess}",true);
                 throw new ArgumentException("Missing files");
             }
-            
+
             if (!chckMenaKurs(files)){
-                LoggerService.LoggerService.GetGlobalLog().Warn($"mena_kurs.csv presence problem. The file is missing when mandatory or is present when not expected");
                 throw new ArgumentException("mena_kurs.csv presence problem");
             }
 
@@ -953,9 +969,9 @@ namespace ValidationPilotServices.DataReader
             //files validation cycle
             this.ReadFileDataValidationCycle(files);
 
-            this._result.Write();
+            // this._result.Write();
             //FIXME - convert message format
-            LoggerService.LoggerService.GetValidationProcessingLog().Info($"The Package {this._package.package_number} validation is completed.");
+            _logger?.LogInformation($"The Package {this._package.package_number} validation is completed.");
         }
 
     }
