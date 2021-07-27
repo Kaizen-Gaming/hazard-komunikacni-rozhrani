@@ -6,7 +6,6 @@ using ValidationPilotServices.Infrastructure;
 using ValidationPilotServices.Infrastructure.Enums;
 using Xunit;
 using Xunit.Abstractions;
-using PackageValidation;
 using Microsoft.CodeAnalysis.CSharp.Scripting;
 using Microsoft.CodeAnalysis.Scripting;
 
@@ -39,7 +38,7 @@ namespace ValidationPilotTests
                 csvLine.HraDruh = "B";
                 csvLine.Model = "V";
                 csvLine.Prihlasen = "2019-02-05T12:35:35.3+01:00";
-                
+
                 var globals = new Globals {
                     Context=new Dictionary<string,string>()
                 };

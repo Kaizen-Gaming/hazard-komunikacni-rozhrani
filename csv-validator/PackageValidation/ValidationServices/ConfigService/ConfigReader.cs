@@ -30,7 +30,7 @@ namespace ValidationPilotServices.ConfigService
 
             return section;
         }
-        
+
         private static string GetValue(string name, string keyId)
         {
             IConfigurationSection section = GetSourceSection(name).GetSection(keyId);
@@ -43,7 +43,6 @@ namespace ValidationPilotServices.ConfigService
 
             if (string.IsNullOrEmpty(value))
             {
-                LoggerService.LoggerService.GetGlobalLog().Warn($"Error in GetValue: The settings for {keyId} has wrong value.");
                 throw new ArgumentException($"The settings for {keyId} has wrong value.");
             }
 
@@ -65,13 +64,12 @@ namespace ValidationPilotServices.ConfigService
 
             if (!int.TryParse(sourceValue, out int value))
             {
-                LoggerService.LoggerService.GetGlobalLog().Warn($"Error in GetSectionIntValue: The settings for {sectionName} has wrong value.");
                 throw new ArgumentException($"The settings for {sectionName} has wrong value.");
             }
 
             return value;
         }
-        
+
         public static string GetSourceFolderName()
         {
             return GetValue(RootSectionName, SourceFolderSectionName);

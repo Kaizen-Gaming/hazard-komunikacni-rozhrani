@@ -50,12 +50,15 @@ namespace ValidationPilotServices.SchemaReader
 
             using (TextReader fileReader = File.OpenText(fi.FullName))
             {
-                var csv = new CsvReader( fileReader, CultureInfo.InvariantCulture);
-                csv.Configuration.HasHeaderRecord = true;
-                //csv.Configuration.CultureInfo = new System.Globalization.CultureInfo("en-us");
-                csv.Configuration.RegisterClassMap<TM>();
+                var csvConfiguration = new CsvConfiguration(CultureInfo.InvariantCulture) // new System.Globalization.CultureInfo("en-us")
+                {
+                    HasHeaderRecord = true,
+                    Delimiter = ",",
+                };
+                var csv = new CsvReader(fileReader, csvConfiguration);
+                csv.Context.RegisterClassMap<TM>();
 
-                
+
 
 
                 return csv.GetRecords<T>().ToList();

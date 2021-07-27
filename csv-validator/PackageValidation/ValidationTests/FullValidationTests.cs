@@ -1,11 +1,11 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using ValidationPilotServices.Infrastructure;
-using ValidationPilotServices.Infrastructure.Enums;
+using System.Globalization;
+using System.IO;
+using System.Threading;
+using ValidationPilotServices.ConfigService;
+using ValidationPilotServices.DataReader;
 using Xunit;
 using Xunit.Abstractions;
-using PackageValidation;
 
 namespace ValidationPilotTests
 {
@@ -15,34 +15,74 @@ namespace ValidationPilotTests
         {
         }
 
-        [Fact]
-        public void CreateValidationResultTest()
+        [Theory]
+        [InlineData("DataSource/28934929-V-2019061208-B-01")]
+        [InlineData("DataSource/28934929-V-2019061208-K-01")]
+        [InlineData("DataSource/28934929-V-2019061208-K-02")]
+        [InlineData("DataSource/28934929-V-2019061208-L-01")]
+        [InlineData("DataSource/28934929-V-2019061208-R-01")]
+        [InlineData("DataSource/28934929-V-2019061208-T-01")]
+        [InlineData("DataSource/28934929-V-2019061208-Z-01")]
+        public void Validate_DataSource_ShouldSucceed(string packagePath)
         {
-            PackageValidation.Program.Main(new string[]{"DataSource/28934929-M-2019061208-L-01"});
+            var dataReaderService = SetupDataReaderService(packagePath);
+
+            try
+            {
+                dataReaderService.StartValidationProcess();
+            }
+            catch
+            {
+                Output.WriteLine($"DataReaderService.Output:\n\n{dataReaderService.ValidationOutput}");
+                throw;
+            }
+
+            Assert.True(dataReaderService.IsValid, $"DataReaderService failed because:\n{dataReaderService.ValidationOutput}");
         }
 
-        [Fact]
-        public void TestV(){
-            PackageValidation.Program.Main(new string[]{"/home/rasekl/buffer/2022-04-12-hazard-validace/26493993-V-2022030616-L/"});
+        [Theory]
+        [InlineData("DataSource/30030030-V-2019012108-R-01")]
+        public void Validate_DataSource_ShouldFailWithException(string packagePath)
+        {
+            var dataReaderService = SetupDataReaderService(packagePath);
+
+            Assert.Throws<ArgumentException>(() => dataReaderService.StartValidationProcess());
         }
 
-        [Fact]
-        public void TestFile(){
-            //PackageValidation.Program.Main(new string[]{"DataSource/28934929-M-201906-B-cas01-01/"});
-            //PackageValidation.Program.Main(new string[]{"DataSource/28934929-M-201906-B-cas01-01"});
+        [Theory]
+        [InlineData("DataSource/28934929-V-2019063016-K-01")]
+        [InlineData("DataSource/28934929-V-2019063016-K-02")]
+        public void Validate_DataSource_ShouldFailWithNotValid(string packagePath)
+        {
+            var dataReaderService = SetupDataReaderService(packagePath);
 
-            //PackageValidation.Program.Main(new string[]{"DataSource/30123456-M-201902-Z-456-01"});
+            dataReaderService.StartValidationProcess();
 
-            // PackageValidation.Program.Main(new string[]{"DataSource/14613549-V-2018051416-K-01","provozovatel.csv"});
-            //PackageValidation.Program.Main(new string[]{"DataSource/28934929-V-2019061208-K-01"});
-            //PackageValidation.Program.Main(new string[]{"DataSource/28934929-V-2019061208-K-02"});
-            //PackageValidation.Program.Main(new string[]{"DataSource/28934929-V-2019063016-K-01"});
-            PackageValidation.Program.Main(new string[]{"/home/rasekl/buffer/2022-04-12-hazard-validace/26493993-V-2022030616-L-02/"});
-            //PackageValidation.Program.Main(new string[]{"/home//buffer/47252481-V-2019051500-T-02"});
-            // PackageValidation.Program.Main(new string[]{"DataSource/28934929-V-2019061208-R-01"});
-            // PackageValidation.Program.Main(new string[]{"DataSource/28934929-V-2019061208-B-01"});
-            // PackageValidation.Program.Main(new string[]{"DataSource/28934929-V-2019061208-T-01"});
-            // PackageValidation.Program.Main(new string[]{"DataSource/28934929-V-2019061208-Z-01"});
+            Output.WriteLine(dataReaderService.ValidationOutput);
+
+            Assert.False(dataReaderService.IsValid);
+        }
+
+        private DataReaderService SetupDataReaderService(string packagePath)
+        {
+            Thread.CurrentThread.CurrentCulture = new CultureInfo("en-us");
+            Thread.CurrentThread.CurrentUICulture = new CultureInfo("en-us");
+
+            var packagePathInfo = new DirectoryInfo(packagePath);
+
+            Assert.True(packagePathInfo.Exists, $"Package dir does not exist {packagePathInfo.FullName}");
+
+            var metaDataCheckService = new MetaDataCheckService();
+            var metaDataCheckSuccess = metaDataCheckService.Ini();
+
+            Assert.True(metaDataCheckSuccess, $"MetaDataCheckService failed because {metaDataCheckService.ErrorMessage}");
+
+            var packageReaderService = new PackageReaderService(packagePathInfo.FullName);
+            var packageReaderSuccess = packageReaderService.Ini();
+
+            Assert.True(packageReaderSuccess, $"PackageReaderService failed because {packageReaderService.ErrorMessage}");
+
+            return new DataReaderService(packageReaderService);;
         }
     }
 }

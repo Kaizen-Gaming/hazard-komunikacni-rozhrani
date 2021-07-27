@@ -10,7 +10,7 @@ namespace ValidationPilotServices.Infrastructure.Extensions
 {
     /// <summary>
     /// Expression Collection:
-    ///     @FieldName.IsEmpty()          
+    ///     @FieldName.IsEmpty()
     ///     @FieldName.NotEmpty()
     ///     @FieldName.InRange(value1, value2,...)
     ///     @FieldName.NotInRange(value1, value2,...)
@@ -26,7 +26,7 @@ namespace ValidationPilotServices.Infrastructure.Extensions
         private static readonly string FIELD_NOT_EMPTY_EXPRESSION_TEMPLATE = @"([A-Za-z0-9]{1,}).(NotEmpty\(\))";
         private static readonly string FIELD_IN_RANGE_EXPRESSION_TEMPLATE = @"([A-Za-z0-9]{1,}).InRange(\(((\w|,?)*)\))";
         private static readonly string FIELD_NOT_IN_RANGE_EXPRESSION_TEMPLATE = @"([A-Za-z0-9]{1,}).NotInRange(\(((\w|,?)*)\))";
-        
+
         /// <summary>
         /// This function returns template to parse expression.
         /// </summary>
@@ -51,7 +51,6 @@ namespace ValidationPilotServices.Infrastructure.Extensions
                 return FIELD_NOT_IN_RANGE_EXPRESSION_TEMPLATE;
             }
 
-            LoggerService.LoggerService.GetGlobalLog().Warn($"There is no any expressions found for {expression}");
             throw new ArgumentException($"There is no any expressions found for {expression}");
         }
 
@@ -62,7 +61,6 @@ namespace ValidationPilotServices.Infrastructure.Extensions
 
             if (match.Groups.Count < groupsCountCompulsory || string.IsNullOrEmpty(match.Groups[1].Value))
             {
-                LoggerService.LoggerService.GetGlobalLog().Warn($"The expression {expression} for the field has been parsed with error.");
                 throw new ArgumentException(
                     $"The expression {expression} for the field has been parsed with error.");
             }
@@ -75,7 +73,6 @@ namespace ValidationPilotServices.Infrastructure.Extensions
             var obj = (IDictionary<string, object>)source;
             if (!obj.ContainsKey(fieldName))
             {
-                LoggerService.LoggerService.GetGlobalLog().Warn($"The Source Row doesn't contain field {fieldName}");
                 throw new ArgumentException($"The Source Row doesn't contain field {fieldName}");
             }
 
@@ -84,7 +81,7 @@ namespace ValidationPilotServices.Infrastructure.Extensions
 
         private static string[] GetCollectionArray(string source, string fieldName)
         {
-            string[] array = source.Split(",");
+            string[] array = source.Split(',');
             if (array == null || array.Length == 0)
             {
                 throw new ArgumentNullException($"There is no any data to validate field {fieldName} are presented.");
@@ -97,14 +94,13 @@ namespace ValidationPilotServices.Infrastructure.Extensions
         {
             if (value == null || string.IsNullOrEmpty(value.ToString()))
             {
-                LoggerService.LoggerService.GetGlobalLog().Warn($"The value to validate {fieldName} is not presented.");
                 throw new ArgumentException($"The value to validate {fieldName} is not presented.");
             }
 
             string[] array = GetCollectionArray(rangeSource, fieldName);
             return array.Contains(value.ToString());
         }
-      
+
         /// <summary>
         /// This function returns TRUE if the expression in <see cref="FieldItem.IsNullableCondition"/> property
         /// of the <para>field</para> is not empty, parsed and executed correctly.
@@ -123,7 +119,6 @@ namespace ValidationPilotServices.Infrastructure.Extensions
             {
                 if (string.IsNullOrEmpty(field.IsNullableCondition))
                 {
-                    LoggerService.LoggerService.GetGlobalLog().Warn( $"The field {field.FieldName} contains an expression reference, however the expression is empty.");
                     throw new ArgumentException(
                         $"The field {field.FieldName} contains an expression reference, however the expression is empty.");
                 }
