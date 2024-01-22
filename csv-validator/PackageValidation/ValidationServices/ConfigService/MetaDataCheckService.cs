@@ -39,7 +39,7 @@ namespace ValidationPilotServices.ConfigService
         /// </summary>
         public bool Ini()
         {
-            string[] files = this.SpecialCodeBooks.Split(";");
+            string[] files = this.SpecialCodeBooks.Split(';');
 
             foreach (string file in files)
             {

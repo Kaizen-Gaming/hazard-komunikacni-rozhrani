@@ -27,7 +27,7 @@ namespace ValidationPilotServices.SchemaReader
 
         [ConfigurationReader(ConfigurationParameter = "SourceLocation:SchemaStructure:FileName")]
         public string FileName { get; set; }
-        
+
         public FieldsStructureReaderService(string model) : base(ConfigReader.GetSourceFolderName())
         {
             this._model = model;
@@ -52,7 +52,6 @@ namespace ValidationPilotServices.SchemaReader
         {
             if (string.IsNullOrEmpty(this.FileName))
             {
-                LoggerService.LoggerService.GetGlobalLog().Warn( $"The file name of the source is not defined.");
                 throw new ArgumentException($"The file name of the source is not defined.");
             }
 
@@ -97,7 +96,6 @@ namespace ValidationPilotServices.SchemaReader
                 }
                 catch (Exception ex)
                 {
-                    LoggerService.LoggerService.GetGlobalLog().Warn($"File structure Reader: {ex.Message}",ex);
                     throw new ArgumentException($"File structure Reader: {ex.Message}");
                 }
             }

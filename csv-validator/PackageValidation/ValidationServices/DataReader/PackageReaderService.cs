@@ -1,7 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.Dynamic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -11,7 +9,6 @@ using ValidationPilotServices.DataTypes;
 using ValidationPilotServices.Infrastructure;
 using ValidationPilotServices.Infrastructure.Attributes;
 using ValidationPilotServices.Infrastructure.Enums;
-using ValidationPilotServices.Infrastructure.Extensions;
 using ValidationPilotServices.SchemaReader;
 using ValidationPilotServices.SchemaReader.Profiles;
 
@@ -43,7 +40,7 @@ namespace ValidationPilotServices.DataReader
 
         //Number of groups expectation after reg expression applied.
         private readonly string gameTypeAssignation = "HraDruh";
-      
+
         //full files path string
         public readonly string package_source_full_path;
         //package name string to get package's entry parameters
@@ -53,7 +50,7 @@ namespace ValidationPilotServices.DataReader
 
         private readonly EnumPackageTypeReport _packageType;
 
-        private DateTime _reportingPeriod = default(DateTime); 
+        private DateTime _reportingPeriod = default(DateTime);
 
         public CodeBookCollection CodeBook { get; private set; }
 
@@ -72,7 +69,6 @@ namespace ValidationPilotServices.DataReader
                     case EnumPackageTypeReport.DAILY:
                         return ConfigSettings.daily_regex;
                     default:
-                        LoggerService.LoggerService.GetGlobalLog().Warn("RegExpression.get(): The regular Expression for this Package is not defined");
                         throw new ArgumentException("The regular Expression for this Package is not defined");
                 }
             }
@@ -105,7 +101,6 @@ namespace ValidationPilotServices.DataReader
                     case EnumPackageTypeReport.DAILY:
                         return this._dailyGroupsCount;
                     default:
-                        LoggerService.LoggerService.GetGlobalLog().Warn("The Groups count parameter for this Package is not defined");
                         throw new ArgumentException("The Groups count parameter for this Package is not defined");
                 }
             }
@@ -147,7 +142,6 @@ namespace ValidationPilotServices.DataReader
             } else if ( daily.Match(package_number).Success ){
                 this._packageType = EnumPackageTypeReport.DAILY;
             } else {
-                 LoggerService.LoggerService.GetGlobalLog().Warn($"The Package name {this.package_number} has invalid name.");
                  throw new ArgumentException($"The Package name {this.package_number} has invalid name.");
             }
 
@@ -190,7 +184,7 @@ namespace ValidationPilotServices.DataReader
 
             if (match.Groups.Count < 2)
             {
-                throw new ValidationException($"Package {this.package_number} has invalid model name.");
+                throw new Exception($"Package {this.package_number} has invalid model name.");
             }
             return match.Groups[this._packageModelGroup].Value;
         }
@@ -210,7 +204,6 @@ namespace ValidationPilotServices.DataReader
 
             if (match.Groups.Count != this.ExpectedGroupsCount)
             {
-                LoggerService.LoggerService.GetGlobalLog().Warn($"The Package name {this.package_number} has invalid name.");
                 throw new ArgumentException($"The Package name {this.package_number} has invalid name.");
             }
 
@@ -223,7 +216,6 @@ namespace ValidationPilotServices.DataReader
             {
                 this.AddErrorMessage(
                     $"The GameType Parameter of the Package is not defined. Value: {match.Groups[4].Value.ToString()}");
-                LoggerService.LoggerService.GetGlobalLog().Warn(this.ErrorMessage);    
                 throw new ArgumentException(this.ErrorMessage);
             }
 
@@ -258,7 +250,6 @@ namespace ValidationPilotServices.DataReader
 
                 if (item == null)
                 {
-                    LoggerService.LoggerService.GetGlobalLog().Warn($"Game type {assignationValue} defined in Package Number is invalid.");
                     throw new ArgumentException($"Game type {assignationValue} defined in Package Number is invalid.");
                 }
 
@@ -273,7 +264,7 @@ namespace ValidationPilotServices.DataReader
 
         /// <summary>
         /// This function returns Reporting Date of the package in case the value selected from package name has valid format.
-        /// Otherwise the function invokes  ArgumentException. 
+        /// Otherwise the function invokes  ArgumentException.
         /// </summary>
         /// <param name="value">The Reporting Date of the package string representation to validate.</param>
         /// <returns>The Reporting Date of the package.</returns>
@@ -281,7 +272,6 @@ namespace ValidationPilotServices.DataReader
         {
             if (!DateTime.TryParseExact(value, this.ReportingPeriodDateFormat, null, DateTimeStyles.None, out DateTime date))
             {
-                LoggerService.LoggerService.GetGlobalLog().Warn($"The Package Reporting Period has invalid value - {value}");
                 throw new ArgumentException($"The Package Reporting Period has invalid value - {value}");
             }
 
@@ -289,7 +279,6 @@ namespace ValidationPilotServices.DataReader
             {
                 if (!new int[] { 0, 8, 16 }.Contains(date.Hour))
                 {
-                    LoggerService.LoggerService.GetGlobalLog().Warn($"The Package Reporting Period hours has invalid value - {date.Hour}");
                     throw new ArgumentException($"The Package Reporting Period hours has invalid value - {date.Hour}");
                 }
             }
@@ -316,7 +305,6 @@ namespace ValidationPilotServices.DataReader
             }
             catch (Exception ex)
             {
-               LoggerService.LoggerService.GetGlobalLog().Error("Exception in GetCOdeBook",ex);
                this.AddErrorMessage($"Code book initialization process: {ex.Message}");
             }
             return this.IsValid;
