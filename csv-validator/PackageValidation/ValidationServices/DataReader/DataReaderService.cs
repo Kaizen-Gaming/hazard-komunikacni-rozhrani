@@ -451,7 +451,7 @@ namespace ValidationPilotServices.DataReader
             };
 
             using (StreamReader reader = new VerifyingStreamReader(fileInfo.FullName,enc))
-            using (CsvReader csv = new CsvReader(reader, csvConfiguration, CultureInfo.InvariantCulture))
+            using (CsvReader csv = new CsvReader(reader, csvConfiguration))
             {
                 int headerCount = 0;
 
@@ -885,7 +885,7 @@ namespace ValidationPilotServices.DataReader
                 };
 
                 using (StreamReader reader = new StreamReader(fileInfo.FullName))
-                using (var csv = new CsvReader(reader, csvConfiguration, CultureInfo.InvariantCulture))
+                using (var csv = new CsvReader(reader, csvConfiguration))
                 {
                     int lineCounter = 0;
 

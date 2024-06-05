@@ -145,7 +145,6 @@ namespace PackageValidation
 
         private static void WriteDebugInfo(string msg)
         {
-            LoggerService.GetGlobalLog().Debug(msg);
             Console.WriteLine(msg);
         }
 
@@ -154,7 +153,6 @@ namespace PackageValidation
             Console.ForegroundColor = ConsoleColor.Red;
             Console.WriteLine(msg);
             Console.WriteLine("It's not possible to continue the validation process.");
-            LoggerService.GetGlobalLog().Fatal(msg,ex);
             Console.ForegroundColor = ConsoleColor.White;
         }
     }
